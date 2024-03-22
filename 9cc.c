@@ -6,7 +6,7 @@
 #include <string.h>
 
 typedef enum {
-	TK_PUNCT,	// Punctuators
+	TK_RESERVED,// Reserved operators
 	TK_NUM,		// Numeric literals
 	TK_EOF,		// End-of-file marker
 } TokenKind;
@@ -17,9 +17,11 @@ struct Token {
 	TokenKind kind;	// Token kind
 	Token *next;	// Next token
 	int val;		// if kind is TK_NUM, its value
-	char *loc;		// Token location
-	int len;		// Token length
+	char *str;		// Token string
 };
+
+// Global variable for tokens
+static Token *token;
 
 // Reports an error and exits.
 static void error(char *fmt, ...) {
@@ -30,38 +32,44 @@ static void error(char *fmt, ...) {
 	exit(1);
 }
 
-// ?????Consumes the token if it matches 'op'.
-// Checks if a token matches a given operator
-static bool equal(Token *tok, char *op) {
-	return memcmp(tok->loc, op, tok->len) == 0 && op[tok->len] == '\0';
+bool consume(char op) {
+	if (token->kind != TK_RESERVED || token->str[0] != op)
+		return false;
+	token = token->next;
+	return true;
 }
 
-// Ensure that the current token is 's'.
-static Token *skip(Token *tok, char *s) {
-	if(!equal(tok, s))
-		error("Expected '%s'", s);
-	return tok->next;
+void expect(char op) {
+	if (token->kind != TK_RESERVED || token->str[0] != op)
+		error("'%c' not found", op);
+	token = token->next;
 }
 
-// Ensure that the current token is TK_NUM.
-static int get_number(Token *tok) {
-	if (tok->kind != TK_NUM)
+int expect_number() {
+	if (token->kind != TK_NUM)
 		error("Expected a number");
-	return tok->val;
+	int val = token->val;
+	token = token->next;
+	return val;
+}
+
+bool at_eof() {
+	return token->kind == TK_EOF;
 }
 
 // Create a new token
-static Token *new_token(TokenKind kind, char *start, char *end) {
+Token *new_token(TokenKind kind, Token *cur, char *str) {
 	Token *tok = calloc(1, sizeof(Token));
 	tok->kind = kind;
-	tok->loc = start;
-	tok->len = end - start;
+	tok->str = str;
+	cur->next = tok;
 	return tok;
 }
 
 // Tokenize 'p' and returns new tokens.
-static Token *tokenize(char *p) {
-	Token head = {};
+Token *tokenize(char *p) {
+	Token head;
+	head.next = NULL;
 	Token *cur = &head;
 
 	while (*p) {
@@ -71,26 +79,23 @@ static Token *tokenize(char *p) {
 			continue;
 		}
 
-		// Numerical literal
-		if (isdigit(*p)) {
-			cur = cur->next = new_token(TK_NUM, p, p);
-			char *q = p;
-			cur->val = strtoul(p, &p, 10);
-			cur->len = p - q;
+		// Operators
+		if (*p == '+' || *p == '-') {
+			cur = new_token(TK_RESERVED, cur, p++);
 			continue;
 		}
 
-		// Punctuator
-		if (*p == '+' || *p == '-') {
-			cur = cur->next = new_token(TK_PUNCT, p, p + 1);
-			p++;
+		// Numerical literal
+		if (isdigit(*p)) {
+			cur = new_token(TK_NUM, cur, p);
+			cur->val = strtol(p, &p, 10);
 			continue;
 		}
 
 		error("Invalid token");
 	}
 
-	cur = cur->next = new_token(TK_EOF, p, p);
+	new_token(TK_EOF, cur, p);
 	return head.next;
 }
 
@@ -100,29 +105,24 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 
-	Token *tok = tokenize(argv[1]);
+	token = tokenize(argv[1]);
 
 	printf(".intel_syntax noprefix\n");
 	printf(".globl main\n");
 	printf("main:\n");
 
 	// First token must be a number
-	printf("  mov rax, %d\n", get_number(tok));
-	tok = tok->next;	
+	printf("  mov rax, %d\n", expect_number());
 
 	// ... followed by either '+ <number>' or '- <number>'.
-	while (tok->kind != TK_EOF) {
-		if (equal(tok, "+")) {
-			printf("  add rax, %d\n", get_number(tok->next));
-			tok = tok->next->next;
+	while (!at_eof()) {
+		if (consume('+')) {
+			printf("  add rax, %d\n", expect_number());
 			continue;
 		}
 
-		tok = skip(tok, "-");
-		printf("  sub rax, %d\n", get_number(tok));
-		
-		//printf("Token Kind: %d\tValue: %d\n", tok->kind, tok->val);
-		tok = tok->next;
+		expect('-');
+		printf("  sub rax, %d\n", expect_number());
 	}
 
 	printf("  ret\n");
