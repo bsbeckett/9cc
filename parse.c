@@ -3,6 +3,7 @@
 // Parser
 // ///////////////////////////////////////
 
+extern Node *code[100];
 
 Node *new_node(NodeKind kind) {
 	Node *node = calloc(1, sizeof(Node));
@@ -23,7 +24,10 @@ Node *new_num(int val) {
 	return node;
 }
 
+void program();
+Node *stmt();
 Node *expr();
+Node *assign();
 Node *equality();
 Node *relational();
 Node *add();
@@ -31,9 +35,33 @@ Node *mul();
 Node *unary();
 Node *primary();
 
-// expr = equality
+// program = stmt*
+void program() {
+	int i = 0;
+	while (!at_eof())
+		code[i++] = stmt();
+	code[i] = NULL;
+}
+
+// stmt = expr ";"
+Node *stmt() {
+	Node *node = expr();
+	expect(";");
+	return node;
+}
+
+
+// expr = assign
 Node *expr() {
-	return equality();
+	return assign();
+}
+
+// assign = equality ("=" assign)?
+Node *assign() {
+	Node *node = equality();
+	if (consume("="))
+		node = new_binary(ND_ASSIGN, node, assign());
+	return node;
 }
 
 // equality = relational ("==" relational | "!=" relational)*
@@ -114,13 +142,21 @@ Node *primary() {
 		expect(")");
 		return node;
 	}
-
+	
+	Token *tok = consume_ident();
+	if(tok) {
+		//printf("Got an identifier: %c\n", tok->str[0]);
+		Node *node = calloc(1, sizeof(Node));
+		node->kind = ND_LVAR;
+		node->offset = (tok->str[0] - 'a' + 1) * 8;
+		return node;
+	}
+	
 	// Otherwise it should be a number
 	return new_num(expect_number());
 }
 
 
 Node *parse() {
-  Node *node = expr();
-  return node;
+	program();
 }

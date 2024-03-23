@@ -36,11 +36,27 @@ bool consume(char *op) {
 	return true;
 }
 
+Token *consume_ident() {
+	if (token->kind != TK_IDENT)
+		return NULL;
+	Token *ident_token = token;
+	token = token->next;
+	return ident_token;
+}
+
 void expect(char *op) {
 	if (token->kind != TK_RESERVED || strlen(op) != token->len ||
 		memcmp(token->str, op, token->len))
 		error_at(token->str, "expected \"%s\"", op);
 	token = token->next;
+}
+
+bool isNum() {
+	return token->kind == TK_NUM;
+}
+
+bool isIdent() {
+	return token->kind == TK_IDENT;
 }
 
 int expect_number() {
@@ -92,14 +108,15 @@ Token *tokenize() {
 		}
 
 		// Single-letter Operators
-		if (strchr("+-*/()<>", *p)) { 
+		if (strchr("+-*/()<>=;", *p)) { 
 			cur = new_token(TK_RESERVED, cur, p++, 1);
 			continue;
 		}
 
-		// Identifier
+		// Single-letter Identifiers
 		if ('a' <= *p && *p <= 'z') {
 			cur = new_token(TK_IDENT, cur, p++, 1);
+			//printf("Local var ident: %c\n", *(p-1));
 			continue;
 		}
 

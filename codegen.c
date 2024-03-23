@@ -3,9 +3,36 @@
 // Code Generator
 // ////////////////////////////////
 
+extern Node *code[100];
+
+void gen_lval(Node *node) {
+	if (node->kind != ND_LVAR)
+		error("LValue of assignment is not a variable");
+
+	printf("  mov rax, rbp\n");
+	printf("  sub rax, %d\n", node->offset);
+	printf("  push rax\n");	
+}
+
 void gen(Node *node) {
-	if (node->kind == ND_NUM) {
+	switch (node->kind) {
+	case ND_NUM:
 		printf("  push %d\n", node->val);
+		return;
+	case ND_LVAR:
+		gen_lval(node);
+		printf("  pop rax\n");
+		printf("  mov rax, [rax]\n");
+		printf("  push rax\n");
+		return;
+	case ND_ASSIGN:
+		gen_lval(node->lhs);
+		gen(node->rhs);
+
+		printf("  pop rdi\n");
+		printf("  pop rax\n");
+		printf("  mov [rax], rdi\n");
+		printf("  push rdi\n");
 		return;
 	}
 
@@ -54,17 +81,30 @@ void gen(Node *node) {
 	printf("  push rax\n");
 }
 
-void codegen(Node *node) {
+void codegen() {
 	// Output the first part of the assembly
 	printf(".intel_syntax noprefix\n");
 	printf(".globl main\n");
 	printf("main:\n");
 
-	// Generate code while descending the AST
-	gen(node);
+	// Prolog
+	// Reserve space for 26 variables (a-z)
+	printf("  push rbp\n");
+	printf("  mov rbp, rsp\n");
+	printf("  sub rsp, 208\n");
 
-	// The value of the entire expression should be at the top of the stack.
-	// So, load it into RAX and use it as the return value from the function.
-	printf("  pop rax\n");
+	// Generate code sequentially from the first expression
+	for (int i = 0; code[i]; i++) {
+		gen(code[i]);
+
+		// One value remains on the stack as a result of evaluating the expression
+		// As expected, pop it to prevent the stack from overflowing
+		printf("  pop rax\n");
+	}
+
+	// Epilogue
+	// The result of the last expression remains in RAX, so it becomes the return value
+	printf("  mov rsp, rbp\n");
+	printf("  pop rbp\n");
 	printf("  ret\n");
 }
