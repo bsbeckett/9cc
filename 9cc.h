@@ -67,6 +67,15 @@ struct Node {
   int offset;    // Used if kind == ND_LVAR
 };
 
+// Local variable type
+typedef struct LVar LVar;
+struct LVar {
+	LVar *next;	// Next variable or NULL
+	char *name;	// Variable name
+	int len;	// Name length
+	int offset; // Offset from RBP
+};
+
 Node *parse();
 
 //

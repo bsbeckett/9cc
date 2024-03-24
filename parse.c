@@ -4,6 +4,7 @@
 // ///////////////////////////////////////
 
 extern Node *code[100];
+extern LVar *locals;
 
 Node *new_node(NodeKind kind) {
 	Node *node = calloc(1, sizeof(Node));
@@ -22,6 +23,14 @@ Node *new_num(int val) {
 	Node *node = new_node(ND_NUM);
 	node->val = val;
 	return node;
+}
+
+// Find local variables by name. Return NULL if not found.
+LVar *find_lvar(Token *tok) {
+	for (LVar *var = locals; var; var = var->next)
+		if (var->len == tok->len && !memcmp(tok->str, var->name, var->len))
+			return var;
+	return NULL;
 }
 
 void program();
@@ -145,10 +154,27 @@ Node *primary() {
 	
 	Token *tok = consume_ident();
 	if(tok) {
-		//printf("Got an identifier: %c\n", tok->str[0]);
 		Node *node = calloc(1, sizeof(Node));
 		node->kind = ND_LVAR;
-		node->offset = (tok->str[0] - 'a' + 1) * 8;
+
+		LVar *lvar = find_lvar(tok);
+		if (lvar) {
+			node->offset = lvar->offset;
+			//printf("Variable found\n");
+		} else {
+			//printf("Variable DNE\n");
+			lvar = calloc(1, sizeof(LVar));
+			lvar->next = locals;
+			lvar->name = tok->str;
+			lvar->len = tok->len;
+			// If locals == NULL, then start at 8
+			// otherwise add 8 to the previous offset
+			lvar->offset = (locals) ? locals->offset + 8 : 8;
+			node->offset = lvar->offset;
+			locals = lvar;
+		}
+		//node->offset = (tok->str[0] - 'a' + 1) * 8;
+
 		return node;
 	}
 	

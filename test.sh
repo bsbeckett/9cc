@@ -4,7 +4,7 @@ assert() {
   input="$2"
 
   ./9cc "$input" > tmp.s || exit
-  gcc -static -o tmp tmp.s
+  cc -static -o tmp tmp.s
   ./tmp
   actual="$?"
 
@@ -46,5 +46,6 @@ assert 0 "3 != 3;"
 # Single-letter variables
 assert 5 "a=3;b=2;a+b;";
 assert 50 "a=100; b=4; c =25; d = 4;a*d/b-50;"
-assert 7 "a=2;b=a+2;c=a+b;(a+a)/b+c;"
+assert 7 "a = 2; b = a + 2 ; c = a + b; (a+a)/b+c;"
+assert 88 "Brad = 43; Brio = 45; Brad + Brio;"
 echo OK

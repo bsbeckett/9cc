@@ -9,6 +9,9 @@ Token *token;
 // Program nodes
 Node *code[100];
 
+// Local variables
+LVar *locals;
+
 int main(int argc, char **argv) {
 	if (argc != 2) {
 		fprintf(stderr, "%s: invalid number of arguments\n", argv[0]);

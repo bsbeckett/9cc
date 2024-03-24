@@ -4,6 +4,7 @@
 // ////////////////////////////////
 
 extern Node *code[100];
+extern LVar *locals;
 
 void gen_lval(Node *node) {
 	if (node->kind != ND_LVAR)
@@ -88,10 +89,10 @@ void codegen() {
 	printf("main:\n");
 
 	// Prolog
-	// Reserve space for 26 variables (a-z)
+	// Reserve space for local variables
 	printf("  push rbp\n");
 	printf("  mov rbp, rsp\n");
-	printf("  sub rsp, 208\n");
+	printf("  sub rsp, %d\n", ((locals) ? locals->offset : 0));
 
 	// Generate code sequentially from the first expression
 	for (int i = 0; code[i]; i++) {

@@ -59,6 +59,16 @@ bool isIdent() {
 	return token->kind == TK_IDENT;
 }
 
+// Returns true if c is valid as the first character of an identifier
+bool is_ident1(char c) {
+	return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || c == '_';
+}
+
+// Returns true if c is valid as a non-first character of an identifier
+bool is_ident2(char c) {
+	return is_ident1(c) || ('0' <= c && c <= '9');
+}
+
 int expect_number() {
 	if (token->kind != TK_NUM)
 		error_at(token->str, "expected a number");
@@ -114,9 +124,16 @@ Token *tokenize() {
 		}
 
 		// Single-letter Identifiers
-		if ('a' <= *p && *p <= 'z') {
-			cur = new_token(TK_IDENT, cur, p++, 1);
-			//printf("Local var ident: %c\n", *(p-1));
+		if (is_ident1(*p)) {
+			char *start = p;
+			char buffer[100];
+			do {
+				buffer[p-start] = *p;
+				p++;
+			} while (is_ident2(*p));
+			buffer[p-start] = '\0';
+			cur = new_token(TK_IDENT, cur, start, p-start);
+			//printf("Local var ident: %s\n", buffer);
 			continue;
 		}
 
